@@ -1,6 +1,8 @@
 # bihalofit-JAX
 
 JAX implementation of the BiHaloFit nonlinear matter bispectrum ([Takahashi et al. 2020](https://arxiv.org/abs/1911.07886)), with fully differentiable P(k) backends and GPU support.
+Documentation: https://bihalofit-jax.readthedocs.io
+
 This package provides support for:
 - The 3D matter bispectrum, $B_\delta(k_1,k_2,k_3,z)$.
 - The Limber-projected angular bispectrum for a

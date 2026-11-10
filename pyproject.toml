@@ -48,6 +48,7 @@ dev = [
 ]
 
 [project.urls]
+Documentation = "https://bihalofit-jax.readthedocs.io"
 Repository = "https://github.com/AlexRoskill/bihalofit-jax"
 Issues = "https://github.com/AlexRoskill/bihalofit-jax/issues"
 
