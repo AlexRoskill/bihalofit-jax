@@ -1,0 +1,128 @@
+name: CI
+
+# PRs run the fast suite (no `slow` tests, no baccoemu) on one Python version.
+# Pushes to main and manual dispatch also run the full suite. The whole suite
+# runs in a single pytest process so backend-independent tests (most of the
+# wall time, mainly XLA compilation) are not repeated once per backend.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # A non-editable install, imported from outside the source tree. The `tests`
+  # job below installs with `pip install -e .`, which maps the package to src/ on the
+  # path and so cannot detect a module the package fails to ship. This job is
+  # that detector: keep it separate, and keep the `cd`. Running it on the
+  # oldest and newest supported Python also catches version-specific syntax.
+  import-wheel:
+    name: Import non-editable install (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Build and install the wheel
+        run: |
+          pip install build "jax[cpu]>=0.4.38"
+          python -m build --wheel --outdir dist/
+          pip install --no-deps dist/*.whl
+
+      - name: Import the package and resolve its public API
+        run: |
+          cd "$(mktemp -d)"
+          python -c "
+          import bihalofit_jax
+          print('imported', bihalofit_jax.__file__)
+          missing = [n for n in bihalofit_jax.__all__ if not hasattr(bihalofit_jax, n)]
+          assert not missing, missing
+          "
+
+  # Builds the Sphinx site as Read the Docs does, with warnings as errors, so a
+  # broken docstring or cross-reference fails here before it reaches the docs.
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + docs dependencies
+        run: pip install ".[docs]" "jax[cpu]>=0.4.38"
+
+      - name: Build HTML
+        run: sphinx-build -W --keep-going -b html docs docs/_build/html
+
+  tests:
+    name: Tests (fast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # scipy, sympy and pyshtools are needed by tests that otherwise skip.
+      - name: Install package + test dependencies
+        run: pip install -e "." pytest pytest-cov "jax[cpu]>=0.4.38" scipy sympy "pyshtools>=4.10"
+
+      - name: Tests (eh and syren backends)
+        run: >
+          pytest tests/ --device cpu --backend eh --backend syren -m "not slow"
+          --durations=15 --cov=bihalofit_jax --cov-report=term-missing
+
+  tests-full:
+    name: Tests (full, incl. slow and baccoemu; not highmem)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package + test dependencies
+        run: pip install -e "." pytest "jax[cpu]>=0.4.38" scipy sympy "pyshtools>=4.10"
+
+      # baccoemu has heavy optional deps (CAMB); allow install failure.
+      - name: Install baccoemu (optional)
+        id: bacco
+        run: pip install "baccoemu>=2.0"
+        continue-on-error: true
+
+      # highmem tests peak at ~34 GB; hosted runners have 7-16 GB.
+      - name: Tests (all backends)
+        run: >
+          pytest tests/ --device cpu --durations=25 -m "not highmem"
+          --backend eh --backend syren
+          ${{ steps.bacco.outcome == 'success' && '--backend baccoemu' || '' }}

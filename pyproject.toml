@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bihalofit-jax"
+dynamic = ["version"]
+description = "JAX implementation of the BiHaloFit nonlinear matter bispectrum (Takahashi et al. 2020) with differentiable P(k) backends"
+readme = "README.md"
+authors = [{name = "Alexander Roskill", email = "alexander.roskill@physics.ox.ac.uk"}]
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["cosmology", "bispectrum", "JAX", "BiHaloFit", "power spectrum"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "jax>=0.4.38",
+]
+
+[project.optional-dependencies]
+baccoemu = ["baccoemu>=2.0"]
+# Wigner-3j symbols, needed only by skew_spectra.py (imported lazily).
+skew = ["pyshtools>=4.10"]
+docs = [
+    "sphinx",
+    "numpydoc",
+    "myst-parser",
+    "pydata-sphinx-theme",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "baccoemu>=2.0",
+    "pyshtools>=4.10",
+]
+
+[project.urls]
+Repository = "https://github.com/AlexRoskill/bihalofit-jax"
+Issues = "https://github.com/AlexRoskill/bihalofit-jax/issues"
+
+# src/ is the bihalofit_jax package itself, so `import bihalofit_jax` needs an
+# install (`pip install -e .`). Every module in src/ ships automatically; the
+# `import-wheel` CI job builds and imports a non-editable install as a backstop.
+[tool.setuptools]
+package-dir = {"bihalofit_jax" = "src"}
+packages = ["bihalofit_jax"]
+
+[tool.setuptools.dynamic]
+version = {attr = "bihalofit_jax.__version__"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "--tb=short"

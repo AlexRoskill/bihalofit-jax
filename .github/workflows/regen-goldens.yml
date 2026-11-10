@@ -1,0 +1,43 @@
+name: Regenerate golden references
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: Python version to use
+        default: "3.12"
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+
+      - name: Install package + dependencies
+        run: pip install -e "." "jax[cpu]>=0.4.38"
+
+      - name: Install baccoemu (optional)
+        id: bacco
+        run: pip install "baccoemu>=2.0"
+        continue-on-error: true
+
+      - name: Regenerate golden references (eh + syren)
+        run: python tests/generate_bkappa_golden.py --backends eh syren
+
+      - name: Regenerate golden references (baccoemu)
+        if: steps.bacco.outcome == 'success'
+        run: python tests/generate_bkappa_golden.py --backends baccoemu
+
+      - name: Open PR with updated goldens
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "test: regenerate golden reference files"
+          branch: regen-goldens
+          title: "test: regenerate golden reference files"
+          body: Automated regeneration triggered via workflow dispatch.

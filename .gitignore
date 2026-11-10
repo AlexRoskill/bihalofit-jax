@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Tests, coverage, notebooks, editors
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.swp
+*~
+
+# Build products and caches
+*.so
+/tmp/
+jax_cache/
+docs/_build/
+docs/generated/
+
+# Profiling
+*.qdrep
+*.qdstrm
+*.sqlite
+bench_*.py
+benchmark_*.py
+profile_*.py
+
+# Local notes
+/CLAUDE.md
+/docs/*notes*.md
+
+# Run artefacts, all regenerable: figures, caches, logs and arrays
+/Plots/
+*.log
+*.npz
+!tests/reference/*.npz
